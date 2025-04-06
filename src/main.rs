@@ -1,17 +1,8 @@
-use crate::api::ApiServer;
-use crate::monitor::MonitorManager;
-use crate::persistence::SharedStateTargetDatabase;
-use processmanager::receiver::SignalReceiver;
-use processmanager::{ProcessManager, Runnable};
-use std::sync::Arc;
+use processmanager::Runnable;
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, fmt};
-
-mod api;
-mod monitor;
-pub mod persistence;
 
 #[tokio::main]
 async fn main() {
@@ -20,16 +11,7 @@ async fn main() {
         .with(EnvFilter::from_default_env().add_directive(LevelFilter::INFO.into()))
         .init();
 
-    let database = Arc::new(SharedStateTargetDatabase::new());
-
-    let monitor_manager = MonitorManager::new(Arc::clone(&database));
-    let server = ApiServer::new(Arc::clone(&database));
-
-    let mut process = ProcessManager::new();
-    process.insert(SignalReceiver::default());
-    process.insert(server);
-    process.insert(monitor_manager);
-
+    let process = ping_monitor_rs::create_process().await;
     if let Err(err) = process.process_start().await {
         tracing::error!("Process failed: {:?}", err);
     }
